@@ -47,13 +47,14 @@ SELECT customer_id, market_date
 FROM(
 SELECT distinct customer_id, market_date, dense_rank() over(PARTITION BY customer_id order by market_date DESC) visit_number
 FROM customer_purchases) as x
-where visit_number =1
+where visit_number =1;
 
 /* 3. Using a COUNT() window function, include a value along with each row of the 
 customer_purchases table that indicates how many different times that customer has purchased that product_id. */
 
-SELECT *
-FROM customer_purchases
+SELECT *, count(product_id) over(partition by customer_id, product_id) times_product_purchased_by_customer
+FROM customer_purchases;
+
 
 -- String manipulations
 /* 1. Some product names in the product table have descriptions like "Jar" or "Organic". 
@@ -67,11 +68,18 @@ Remove any trailing or leading whitespaces. Don't just use a case statement for 
 
 Hint: you might need to use INSTR(product_name,'-') to find the hyphens. INSTR will help split the column. */
 
-
+SELECT *,
+case when instr(product_name,'-')=0 then NULL ELSE
+trim(substr(product_name, instr(product_name,'-')+1)) end as description
+FROM product;
 
 /* 2. Filter the query to show any product_size value that contain a number with REGEXP. */
 
-
+SELECT *,
+case when instr(product_name,'-')=0 then NULL ELSE
+trim(substr(product_name, instr(product_name,'-')+1)) end as description
+FROM product
+WHERE product_size GLOB '*[1-9]*';
 
 -- UNION
 /* 1. Using a UNION, write a query that displays the market dates with the highest and lowest total sales.
@@ -83,8 +91,23 @@ HINT: There are a possibly a few ways to do this query, but if you're struggling
 3) Query the second temp table twice, once for the best day, once for the worst day, 
 with a UNION binding them. */
 
+with grouped_dates as (
+SELECT market_date, sum(quantity*cost_to_customer_per_qty) total_sales
+FROM customer_purchases
+GROUP BY market_date),
 
+ranked_dates as (
+SELECT *, rank() over( order by total_sales asc) low_to_high, rank() over( order by total_sales desc) high_to_low
+FROM grouped_dates)
 
+SELECT market_date, "worst_day"  as sales_day
+FROM ranked_dates
+where low_to_high= 1
+UNION
+SELECT  market_date, "best_day"  as sales_day
+FROM ranked_dates
+where high_to_low = 1
+;
 
 /* SECTION 3 */
 
